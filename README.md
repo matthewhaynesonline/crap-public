@@ -2,6 +2,10 @@
 
 Technical report coming soon.
 
+### Video Guide
+
+https://youtu.be/55IBMzFQNYU
+
 ### Setup
 
 ```
