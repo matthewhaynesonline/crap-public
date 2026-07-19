@@ -1,0 +1,61 @@
+# NOTE binary gen sub dir has the code
+# Just adding top level pyproject to make tooling easier
+
+[project]
+name = "crap"
+version = "0.1.0"
+description = "Workspace root for binary-gen and training packages"
+readme = "README.md"
+requires-python = ">=3.14"
+
+[dependency-groups]
+dev = [
+  "pytest>=9.0.0",
+  "ruff>=0.15.12",
+  "pyright>=1.1.390",
+  "pre-commit>=4.6.0",
+]
+# CUDA-only extras, installed on the pod via `uv sync --group cuda` AFTER a
+# plain `uv sync` (two stages: flash-attn builds against the torch already in
+# the venv — see no-build-isolation below). The sys_platform marker makes the
+# group a no-op on macOS instead of a build failure. See scripts/runpod-setup.sh.
+cuda = ["flash-attn>=2.8 ; sys_platform == 'linux'"]
+
+[tool.uv]
+package = false          # virtual workspace root, never gets built/published
+default-groups = ["dev"]
+# flash-attn's setup.py imports torch, so it can't build in an isolated env;
+# it must compile against the torch already installed in the venv.
+no-build-isolation-package = ["flash-attn"]
+
+# flash-attn's sdist needs torch importable even to *resolve* metadata;
+# declaring it here lets `uv lock` succeed without building it.
+[[tool.uv.dependency-metadata]]
+name = "flash-attn"
+requires-dist = ["torch", "einops"]
+
+[tool.uv.workspace]
+members = ["binary-gen", "demo"]
+
+# # Tell uv to resolve these locally from the workspace, not PyPI
+# [tool.uv.sources]
+# binary-gen = { workspace = true }
+# training = { workspace = true }
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+
+[[tool.pyright.executionEnvironments]]
+root = "binary-gen"
+
+[[tool.pyright.executionEnvironments]]
+root = "demo"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "PT"]
+ignore = ["E501"]
