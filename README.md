@@ -6,6 +6,12 @@ Technical report coming soon.
 
 https://youtu.be/55IBMzFQNYU
 
+### Project Page
+[blog.studiohaynes.com/go/crap](https://blog.studiohaynes.com/go/crap)
+
+### Hugging Face Collection
+[huggingface.co/collections/matthewhaynesonline/crap](https://huggingface.co/collections/matthewhaynesonline/crap)
+
 ### Setup
 
 ```
