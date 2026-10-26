@@ -122,8 +122,8 @@ jobs:
               ):
                   raise SystemExit(f'Unreviewed payload path: {relative}')
           PY
-          (cd dist && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) > ../dist-manifest.sha256
-          sha256sum ../dist-manifest.sha256
+          (cd dist && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) > dist-manifest.sha256
+          sha256sum dist-manifest.sha256
 
       - name: Attach the exact payload manifest to the release
         env:

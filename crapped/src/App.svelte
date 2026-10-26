@@ -99,12 +99,24 @@
 
   <footer>
     <p class="links">
-      <a href="https://github.com/matthewhaynesonline/crap-public">Repo</a>
-      <a href="https://huggingface.co/collections/matthewhaynesonline/crap11">Models</a>
-      <a href="https://blog.studiohaynes.com/go/crap">Write up</a>
+      <a
+        href="https://github.com/matthewhaynesonline/crap-public"
+        target="_blank"
+        rel="noopener noreferrer">Repo</a
+      >
+      <a
+        href="https://huggingface.co/collections/matthewhaynesonline/crap11"
+        target="_blank"
+        rel="noopener noreferrer">Models</a
+      >
+      <a href="https://blog.studiohaynes.com/go/crap" target="_blank" rel="noopener noreferrer"
+        >Write up</a
+      >
     </p>
     <p class="credit">
-      <a href="https://blog.studiohaynes.com/">Proudly brought to you by StudioHaynes</a>
+      <a href="https://blog.studiohaynes.com/" target="_blank" rel="noopener noreferrer"
+        >Proudly brought to you by StudioHaynes</a
+      >
     </p>
   </footer>
 </main>
