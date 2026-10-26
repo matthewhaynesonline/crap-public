@@ -1,9 +1,4 @@
-"""Platform definitions and the builder protocol for emitting platform-specific bytecode.
-
-This module defines the supported target platforms and the `PlatformBuilder`
-protocol that concrete builders must implement to produce raw machine code
-for common operations (printing, exiting, etc.).
-"""
+"""Supported target platforms and the `PlatformBuilder` protocol builders implement."""
 
 import platform as _host  # stdlib; aliased to avoid clashing with this module's name
 import sys
@@ -34,8 +29,8 @@ class Platform(StrEnum):
 def host_platform() -> Platform | None:
     """Map the current host (OS + machine) to a Platform, or None if unsupported.
 
-    This is the single source of truth for host/target matching — the runner
-    and sign_binary consult it rather than scattering sys.platform checks.
+    The runner and `sign_binary` use this rather than their own `sys.platform`
+    checks.
     """
     machine = _host.machine()
 
@@ -66,12 +61,10 @@ def can_execute(target: Platform, *, use_docker: bool = False) -> bool:
 
 @dataclass
 class DecodedInstruction:
-    """Result of decoding a single machine instruction from a byte stream.
+    """One decoded instruction.
 
-    Produced by platform-specific decoders in the builder modules and consumed
-    by the analysis pipeline.  Carries both a human-readable ``text``
-    representation and structured fields (``register``, ``immediate``) so that
-    downstream checks can inspect values without parsing strings.
+    Structured fields (``register``, ``immediate``) sit beside the display
+    ``text`` so checks never parse strings.
     """
 
     offset: int  # file offset of the first byte

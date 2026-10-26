@@ -1,0 +1,706 @@
+/*
+ * The whole theme: vaporwave sunset outside, Windows 95 inside.
+ */
+
+:root {
+  --pink: #ff71ce;
+  --cyan: #01cdfe;
+  --mint: #05ffa1;
+  --purple: #b967ff;
+  --yellow: #fffb96;
+  --night: #2b0f54;
+
+  --win: #c0c0c0;
+  --win-dark: #808080;
+  --win-darker: #404040;
+  --win-light: #ffffff;
+  --field: #ffffff;
+  --text: #000000;
+  --text-dim: #3a3a3a;
+  --ok: #006b2b;
+  --bad: #a00020;
+  --title-bar: linear-gradient(90deg, #000080, #1084d0);
+
+  --comic: "Comic Sans MS", "Comic Sans", "Chalkboard SE", "Comic Neue", cursive;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  font: 16px/1.5 var(--comic);
+  color: var(--text);
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: #1a0933;
+  overscroll-behavior-y: none;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* Keep the sky and its decorations in one viewport layer during overscroll. */
+.backdrop {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(
+      180deg,
+      var(--night) 0%,
+      #ab1f65 38%,
+      #ff4f69 52%,
+      #ff8e3c 60%,
+      var(--night) 60.2%,
+      #1a0933 100%
+    )
+    #1a0933;
+}
+
+/* The sun, striped and cut off at the horizon. */
+.backdrop::before {
+  content: "";
+  position: absolute;
+  top: 18vh;
+  left: 50%;
+  width: 70vmin;
+  height: 70vmin;
+  translate: -50% 0;
+  border-radius: 50%;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 55%, var(--night) 55% 58%, transparent 58% 63%),
+    linear-gradient(180deg, var(--yellow), var(--pink) 70%);
+  -webkit-mask: linear-gradient(180deg, #000 0 62%, transparent 62%);
+  mask: linear-gradient(180deg, #000 0 62%, transparent 62%);
+  opacity: 0.85;
+}
+
+/* The grid floor. */
+.backdrop::after {
+  content: "";
+  position: absolute;
+  right: -50%;
+  bottom: 0;
+  left: -50%;
+  height: 40vh;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 58px, var(--pink) 58px 60px),
+    repeating-linear-gradient(180deg, transparent 0 28px, var(--pink) 28px 30px);
+  transform: perspective(300px) rotateX(60deg);
+  transform-origin: bottom;
+  opacity: 0.55;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 48rem;
+  margin: 0 auto;
+  /* Room at the end for the grid floor to show under the footer. */
+  padding: 1rem 1rem 32vh;
+}
+
+/* ---- Masthead ---------------------------------------------------------- */
+
+.marquee {
+  overflow: hidden;
+  border: 2px solid var(--cyan);
+  background: #000;
+  color: var(--mint);
+  font: 700 0.85rem/2 var(--mono);
+  white-space: nowrap;
+}
+
+.marquee span {
+  display: inline-block;
+  padding-left: 100%;
+  animation: scroll 22s linear infinite;
+  /* Start mid-scroll so the bar isn't empty on arrival. */
+  animation-delay: -6s;
+}
+
+@keyframes scroll {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.masthead h1 {
+  margin: 0.4rem 0 0;
+  color: #fff;
+  font: 700 clamp(1.7rem, 7vw, 2.9rem) / 1.05 var(--comic);
+  text-shadow:
+    3px 3px 0 var(--purple),
+    6px 6px 0 rgba(0, 0, 0, 0.35);
+}
+
+.masthead h1 .row {
+  display: block;
+}
+
+.masthead h1 b {
+  font-size: 1.35em;
+  background: linear-gradient(180deg, var(--yellow), var(--pink) 55%, var(--cyan));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(3px 3px 0 var(--night));
+}
+
+.tagline {
+  /* One line on desktop: the text needs ~38rem, so leave headroom. */
+  max-width: 40rem;
+  margin: 0.75rem 0 0;
+  color: var(--yellow);
+  font-size: 1.1rem;
+  text-shadow: 2px 2px 0 #000;
+}
+
+.new {
+  color: #ff3030;
+  font:
+    italic 700 1.1rem "Times New Roman",
+    Times,
+    serif;
+  text-shadow: 1px 1px 0 #000;
+  animation: blink 1s steps(2, start) infinite;
+}
+
+.banner {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 3px dashed var(--pink);
+  background: var(--yellow);
+  font-weight: 700;
+}
+
+.broken {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border: 3px solid var(--bad);
+  background: #fff0f3;
+  color: var(--bad);
+  font: 0.85rem/1.6 var(--mono);
+}
+
+/* ---- Windows ----------------------------------------------------------- */
+
+.box {
+  border: 2px solid;
+  border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+  background: var(--win);
+  box-shadow:
+    1px 1px 0 #000,
+    8px 8px 0 rgba(0, 0, 0, 0.35);
+}
+
+.box-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.2rem 0.4rem;
+  background: var(--title-bar);
+  color: #fff;
+  font: 700 0.95rem/1.4 var(--comic);
+}
+
+.box-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.8rem;
+}
+
+.run-instructions p {
+  margin: 0;
+}
+
+.run-instructions pre {
+  max-width: 100%;
+  margin: 0;
+  padding: 0.75rem;
+  overflow-x: auto;
+  background: var(--win-light);
+  border: 2px inset var(--win-dark);
+  font: 0.8rem/1.5 var(--mono);
+}
+
+.sub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.sub + .sub {
+  padding-top: 0.75rem;
+  border-top: 2px groove var(--win-light);
+}
+
+.sub header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+h3 {
+  margin: 0;
+  font: 700 1rem/1.3 var(--comic);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.count {
+  font: 0.8rem/1.6 var(--mono);
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
+.empty {
+  margin: 0;
+  padding: 0.5rem 0;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+/* ---- Controls ---------------------------------------------------------- */
+
+button,
+select,
+input,
+textarea,
+summary {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button.primary,
+button.ghost,
+.chip,
+.toggle button {
+  padding: 0.3rem 0.9rem;
+  border: 2px solid;
+  border-color: #fff var(--win-darker) var(--win-darker) #fff;
+  border-radius: 0;
+  background: var(--win);
+  color: #000;
+  box-shadow: inset -1px -1px 0 var(--win-dark);
+}
+
+button.primary {
+  font-weight: 700;
+  background: linear-gradient(180deg, var(--mint), #00c97f);
+}
+
+button.primary.big {
+  padding: 0.55rem 1.2rem;
+  font-size: 1.2rem;
+}
+
+button:active:not(:disabled),
+.toggle button.on {
+  border-color: var(--win-darker) #fff #fff var(--win-darker);
+  box-shadow: inset 1px 1px 0 var(--win-dark);
+}
+
+.toggle button.on {
+  background: #dcdcdc;
+  font-weight: 700;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+a:focus-visible {
+  outline: 3px dotted var(--pink);
+  outline-offset: 2px;
+}
+
+select,
+input[type="url"],
+input[type="file"],
+textarea {
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  border: 2px solid;
+  border-color: var(--win-dark) #fff #fff var(--win-dark);
+  border-radius: 0;
+  background: var(--field);
+  color: #000;
+}
+
+input[type="file"] {
+  background: transparent;
+  border: 0;
+}
+
+input[type="url"] {
+  font: 0.85rem var(--mono);
+}
+
+textarea {
+  resize: vertical;
+  font-size: 1rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  padding: 0.15rem 0.6rem;
+  background: #fff;
+  font: 0.85rem/1.6 var(--mono);
+}
+
+kbd {
+  padding: 0 0.3rem;
+  border: 1px solid var(--win-darker);
+  background: #fff;
+  font: 0.75rem var(--mono);
+}
+
+.toggle {
+  display: flex;
+  gap: 2px;
+}
+
+.toggle button {
+  padding: 0.1rem 0.5rem;
+  font: 0.8rem/1.6 var(--mono);
+}
+
+button:disabled,
+.toggle button:disabled {
+  border-color: var(--win-dark);
+  background: var(--win);
+  color: var(--win-darker);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* ---- Model step --------------------------------------------------------- */
+
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.1rem 0.7rem;
+  border: 2px solid #000;
+  border-radius: 999px;
+  background: #ddd;
+  font: 700 0.85rem/1.5 var(--mono);
+}
+
+.pill.ready {
+  background: var(--mint);
+}
+
+.pill.loading {
+  background: var(--yellow);
+  animation: pulse 1s ease-in-out infinite alternate;
+}
+
+.pill.failed {
+  background: #ffc2cc;
+  color: var(--bad);
+}
+
+@keyframes pulse {
+  to {
+    background: var(--pink);
+  }
+}
+
+.progress {
+  height: 1.1rem;
+  padding: 2px;
+  border: 2px solid;
+  border-color: var(--win-dark) #fff #fff var(--win-dark);
+  background: #fff;
+}
+
+/* Win95 progress blocks. */
+.bar {
+  height: 100%;
+  background: repeating-linear-gradient(90deg, #000080 0 10px, transparent 10px 12px);
+  transition: width 120ms linear;
+}
+
+.file-error {
+  margin: 0;
+  color: var(--bad);
+  font-size: 0.9rem;
+}
+
+.advanced {
+  padding: 0.4rem 0.6rem;
+  border: 2px solid;
+  border-color: var(--win-dark) #fff #fff var(--win-dark);
+  background: #d4d4d4;
+  font-size: 0.9rem;
+}
+
+.advanced summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+/* ---- Output ------------------------------------------------------------ */
+
+.stream,
+.dump {
+  max-height: 15rem;
+  margin: 0;
+  padding: 0.6rem;
+  overflow: auto;
+  border: 2px solid;
+  border-color: var(--win-dark) #fff #fff var(--win-dark);
+  background: #000;
+  color: var(--mint);
+  font: 0.82rem/1.7 var(--mono);
+}
+
+.stream {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* A caret while streaming, so a slow model doesn't look like a hung one. */
+.stream.live::after {
+  content: "\258C";
+  color: var(--pink);
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.dump-row {
+  display: flex;
+  gap: 1rem;
+  white-space: pre;
+}
+
+.dump .offset {
+  color: #9a9a9a;
+}
+
+.ascii {
+  color: #ff8fd8;
+}
+
+.stages {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: 0.88rem/1.8 var(--mono);
+}
+
+.stages .mark {
+  display: inline-block;
+  width: 1.2em;
+  font-weight: 700;
+}
+
+.stages .pass {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.stages .fail {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.stages .skip {
+  color: var(--text-dim);
+}
+
+.stages small {
+  font: 0.85rem var(--comic);
+}
+
+.error {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border-left: 4px solid var(--bad);
+  background: #fff0f3;
+  color: var(--bad);
+  font: 0.85rem/1.6 var(--mono);
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0;
+  font: 0.85rem/1.6 var(--mono);
+}
+
+.facts div {
+  display: flex;
+  gap: 0.6rem;
+}
+
+dt {
+  flex: 0 0 5rem;
+  color: var(--text-dim);
+}
+
+dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.payload {
+  color: #6b0080;
+  font-weight: 700;
+}
+
+.disasm {
+  padding: 0.5rem 0.7rem;
+  border: 2px solid;
+  border-color: var(--win-dark) #fff #fff var(--win-dark);
+  background: #fff;
+  font: 0.82rem/1.7 var(--mono);
+  overflow-x: auto;
+}
+
+.line {
+  display: flex;
+  gap: 1rem;
+  white-space: pre;
+}
+
+.disasm .offset {
+  color: #6b0080;
+}
+
+.notes {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+}
+
+.notes .warn {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+/* ---- Fine print and footer --------------------------------------------- */
+
+.quant-disclosure {
+  padding: 0.5rem 0.8rem;
+  border: 3px double var(--purple);
+  background: #fff;
+  font-size: 0.9rem;
+}
+
+.quant-disclosure summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.quant-disclosure p {
+  margin: 0.6rem 0 0;
+}
+
+footer {
+  text-align: center;
+}
+
+footer .links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.5rem;
+  margin: 0.5rem 0;
+}
+
+footer a {
+  color: var(--yellow);
+  font: 700 1.2rem var(--comic);
+  text-shadow: 2px 2px 0 #000;
+}
+
+footer .credit {
+  margin: 1rem 0 0;
+}
+
+footer .credit a {
+  color: var(--cyan);
+  font-size: 0.95rem;
+  font-style: italic;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee span {
+    padding-left: 0;
+    animation: none;
+  }
+
+  .pill.loading,
+  .new,
+  .stream.live::after {
+    animation: none;
+  }
+}

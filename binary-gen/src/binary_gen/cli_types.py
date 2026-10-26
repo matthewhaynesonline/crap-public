@@ -46,34 +46,9 @@ VERBOSE_OPT = Annotated[
     ),
 ]
 
-# "Target platform architecture for the binary." — used on gen/run commands.
 PLATFORM_OPT = Annotated[
     Platform,
     typer.Option("--platform", help="Target platform architecture for the binary."),
-]
-
-# "Target platform architecture to validate against." — used on check/eval commands.
-PLATFORM_VALIDATE_OPT = Annotated[
-    Platform,
-    typer.Option("--platform", help="Target platform architecture to validate against."),
-]
-
-CLEAR_OPT = Annotated[
-    bool,
-    typer.Option(
-        "--clear/--no-clear",
-        help="Recursively delete the ENTIRE output directory before writing. This removes all subdirectories and files, not just the current mode.",
-    ),
-]
-
-EXPECTED_STDOUT_OPT = Annotated[
-    str,
-    typer.Option(help="Expected stdout. Defaults to empty string (checks for no output)."),
-]
-
-EXPECTED_EXIT_OPT = Annotated[
-    int,
-    typer.Option(help="Expected exit code."),
 ]
 
 HEX_OPT = Annotated[

@@ -1,18 +1,16 @@
 """
 Command-line interface for Binary Gen.
 
-Provides tools to generate, sign, evaluate, and inspect raw executable binaries.
+Generate, sign, convert, and execute raw binaries.
 """
 
 import logging
 import subprocess
 import sys
-from functools import cache
 from pathlib import Path
 from typing import Annotated
 
 import typer
-from jinja2 import Environment, PackageLoader, Template
 
 from binary_gen.cli_types import (
     DUMP_HEX_OPT,
@@ -31,16 +29,13 @@ from binary_gen.core import (
     parse_hex,
     sign_binary,
 )
-
-# from binary_gen.core.analysis import analyze_binary, format_analysis
-# from binary_gen.core.eval import eval_binary
-from binary_gen.core.runner import run_binary
+from binary_gen.core.runner import Exited, Signaled, run_binary
 
 MAX_MESSAGE_LENGTH = 64
 
 _RUN_DESCRIPTION = (
-    "Linux binaries run in Docker (linux/amd64). macOS binaries execute "
-    "natively and require a macOS ARM host."
+    "Linux binaries run natively on Linux x86_64 hosts, otherwise in Docker (linux/amd64). "
+    "macOS binaries execute natively and require a macOS ARM host."
 )
 
 logger = logging.getLogger(__name__)
@@ -84,12 +79,6 @@ def gen_cmd(
         Path,
         typer.Option("--output", "-o", help="Output binary path.", **OUTPUT_FILE),
     ] = DEFAULT_BIN_PATH,
-    jinja: Annotated[
-        bool,
-        typer.Option(
-            help="For Mac: use Jinja template rendering instead of the raw binary builder."
-        ),
-    ] = False,
     run: Annotated[
         bool,
         typer.Option(
@@ -104,36 +93,12 @@ def gen_cmd(
     the appropriate executable permissions (and code signature on macOS), and
     optionally executes it.
     """
-    if jinja and platform is not Platform.MAC_ARM:
-        raise typer.BadParameter("--jinja is only valid with --platform mac-arm")
-
     typer.secho("Starting build...", fg="cyan", bold=True)
     typer.echo(f"Payload: {message}")
 
     builder = get_builder(platform)
 
-    if jinja:
-        # Pad to MAX_MESSAGE_LENGTH to fill the fixed template slot. Characters
-        # beyond the message become null bytes embedded in __cstring — the print
-        # syscall uses the exact message length, so they are never written to stdout.
-        padded_bytes = message.encode("ascii").ljust(MAX_MESSAGE_LENGTH, b"\x00")
-        rendered = _get_binary_template().render(message_hex=padded_bytes.hex())
-
-        try:
-            binary_data = parse_hex(rendered)
-        except ValueError as e:
-            # The template is package-controlled, so this indicates a bug
-            # rather than bad user input.
-            typer.secho(
-                f"Internal error: template produced invalid hex ({e}).",
-                fg="red",
-                bold=True,
-            )
-
-            raise typer.Exit(code=1) from None
-
-    else:
-        binary_data = builder.build_print(message)
+    binary_data = builder.build_print(message)
 
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(binary_data)
@@ -160,12 +125,11 @@ def run_cmd(
 ) -> None:
     """Execute a binary for the target platform.
 
-    Linux binaries run in Docker (linux/amd64). macOS binaries execute
-    natively and require a macOS ARM host.
+    Linux binaries run natively on Linux x86_64 hosts, otherwise in Docker
+    (linux/amd64). macOS binaries execute natively and require a macOS ARM host.
 
-    Auto-detects the input type: existing files are read as raw bytes,
-    everything else is parsed as hex.  Use ``--hex`` to force hex
-    interpretation (e.g. for a file containing hex text, or stdin).
+    Existing files are read as raw bytes; anything else is parsed as hex. Use
+    ``--hex`` to force hex, e.g. for a file of hex text or stdin.
     """
     binary_data = _parse_input_as_hex_or_exit(source) if hex else _read_binary_input(source)
     _run_binary(binary_data, platform)
@@ -206,90 +170,8 @@ def from_hex_cmd(
     typer.secho(f"\nSuccess! Wrote executable binary to {output}", fg="green", bold=True)
 
 
-# @app.command(name="inspect")
-# def inspect_cmd(
-#     source: Annotated[
-#         str,
-#         typer.Argument(
-#             help="Path to a binary or hex file, raw hex string, or '-' for stdin.",
-#         ),
-#     ],
-#     hex: HEX_OPT = False,
-# ) -> None:
-#     """Inspect a binary's structure without executing it.
-
-#     Parses the binary, auto-detects the target platform from magic bytes,
-#     validates its format, decodes instructions, and reports any consistency
-#     issues.
-
-#     Auto-detects the input type: existing files are read as raw bytes,
-#     everything else is parsed as hex.  Use ``--hex`` to force hex
-#     interpretation (e.g. for a file containing hex text, or stdin).
-#     """
-#     binary_data = _parse_input_as_hex_or_exit(source) if hex else _read_binary_input(source)
-
-#     analysis = analyze_binary(binary_data)
-#     typer.echo(format_analysis(analysis))
-
-#     if not analysis.valid:
-#         raise typer.Exit(code=1)
-
-
-# @app.command(name="eval")
-# def eval_cmd(
-#     source: Annotated[
-#         str,
-#         typer.Argument(
-#             help="Path to a binary or hex file, raw hex string, or '-' for stdin.",
-#         ),
-#     ],
-#     hex: HEX_OPT = False,
-#     expected_stdout: EXPECTED_STDOUT_OPT = "",
-#     expected_exit: EXPECTED_EXIT_OPT = 0,
-#     platform: PLATFORM_VALIDATE_OPT = Platform.LINUX_X86,
-# ) -> None:
-#     """Evaluate a binary end-to-end.
-
-#     Runs the full eval pipeline (hex → bytes → structural validation →
-#     Docker/native execution), then compares stdout and exit code against
-#     the expected values. Prints PASSED on success, or the full eval result
-#     and FAILED (exit 1) on any mismatch.
-
-#     Auto-detects the input type: existing files are read as raw bytes,
-#     everything else is parsed as hex.  Use ``--hex`` to force hex
-#     interpretation (e.g. for a file containing hex text, or stdin).
-#     """
-#     # eval_binary expects a hex string.  When reading a binary file,
-#     # convert the raw bytes to hex so the eval pipeline's hex-decode
-#     # stage still exercises the full round-trip.
-#     if hex:
-#         hex_data = _parse_text_input(source)
-#     else:
-#         binary_data = _read_binary_input(source)
-#         hex_data = binary_data.hex()
-
-#     eval_result = eval_binary(hex_data, platform, expected_stdout.encode(), expected_exit)
-
-#     print_eval_result(eval_result)
-
-#     if eval_result.passed:
-#         typer.secho("PASSED", fg="green", bold=True)
-#     else:
-#         typer.secho("FAILED", fg="red", bold=True)
-#         raise typer.Exit(code=1)
-
-
-# ─────────────────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────────────────
-
-
 def _parse_input_as_hex_or_exit(raw_input: str) -> bytes:
-    """Resolve a CLI argument to a hex string (via file, stdin, or literal) then parse to bytes.
-
-    Combines ``_parse_text_input`` (handles ``-``, file paths, and literals) with
-    ``_parse_hex_or_exit`` (hex → bytes with a user-friendly error on failure).
-    """
+    """Read hex from a file, stdin or the literal argument, then parse it."""
     return _parse_hex_or_exit(_parse_text_input(raw_input))
 
 
@@ -341,24 +223,12 @@ def _read_binary_input(source: str) -> bytes:
     return _parse_hex_or_exit(source)
 
 
-@cache
-def _get_binary_template() -> Template:
-    """Load (and cache) the binary Jinja template from the package namespace."""
-    env = Environment(loader=PackageLoader("binary_gen", "templates"))
-    return env.get_template("bin.txt")
-
-
 def _finalize_binary(output_path: Path, builder: PlatformBuilder) -> None:
-    """Apply executable permissions and re-sign the binary (macOS only).
+    """Make the binary executable and, on macOS, sign it.
 
-    macOS two-step signing: the Python builder embeds a placeholder code
-    signature that establishes the correct LC_CODE_SIGNATURE layout and
-    __LINKEDIT offsets, but is not accepted by the kernel for execution.
-    The codesign call here replaces the placeholder with a cryptographically
-    valid ad-hoc signature without restructuring the file. Both steps are
-    required — Python sets up the layout, codesign makes it executable.
-
-    Linux binaries need no signing; chmod is sufficient.
+    The builder's placeholder signature fixes the LC_CODE_SIGNATURE layout,
+    but the kernel won't run it until `codesign` replaces it with a valid
+    ad-hoc signature. Linux needs only the chmod.
     """
     try:
         make_binary_executable(output_path)
@@ -392,12 +262,15 @@ def _dump_file_info(output_path: Path, dump_hex: bool = True) -> None:
 
 
 def _run_binary(binary_data: bytes, platform: Platform) -> None:
-    """Run a binary blob for `platform` and print its stdout and (if nonzero) exit code."""
+    """Print stdout and distinguish nonzero exits from signal deaths."""
     result = run_binary(binary_data, platform)
     typer.echo(result.stdout.decode(errors="replace"), nl=False)
 
-    if result.exit_code != 0:
-        typer.secho(f"Exit code: {result.exit_code}", fg="yellow")
+    match result.termination:
+        case Exited(code=code) if code != 0:
+            typer.secho(f"Exit code: {code}", fg="yellow")
+        case Signaled(signal=number):
+            typer.secho(f"Killed by signal: {number}", fg="red")
 
 
 # --------------------------------------------------------------------------- #

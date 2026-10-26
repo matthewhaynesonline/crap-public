@@ -1,2 +1,8 @@
 journal
 .DS_Store
+
+# Python workspace and local check artifacts
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/

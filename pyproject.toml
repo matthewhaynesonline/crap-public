@@ -1,10 +1,7 @@
-# NOTE binary gen sub dir has the code
-# Just adding top level pyproject to make tooling easier
-
 [project]
 name = "crap"
 version = "0.1.0"
-description = "Workspace root for binary-gen and training packages"
+description = "Workspace root for binary-gen and the Python demo"
 readme = "README.md"
 requires-python = ">=3.14"
 
@@ -15,10 +12,8 @@ dev = [
   "pyright>=1.1.390",
   "pre-commit>=4.6.0",
 ]
-# CUDA-only extras, installed on the pod via `uv sync --group cuda` AFTER a
-# plain `uv sync` (two stages: flash-attn builds against the torch already in
-# the venv — see no-build-isolation below). The sys_platform marker makes the
-# group a no-op on macOS instead of a build failure. See scripts/runpod-setup.sh.
+# Optional CUDA attention kernel for the Python inference demo.
+# Install after the main workspace because its build imports torch.
 cuda = ["flash-attn>=2.8 ; sys_platform == 'linux'"]
 
 [tool.uv]
@@ -37,20 +32,19 @@ requires-dist = ["torch", "einops"]
 [tool.uv.workspace]
 members = ["binary-gen", "demo"]
 
-# # Tell uv to resolve these locally from the workspace, not PyPI
-# [tool.uv.sources]
-# binary-gen = { workspace = true }
-# training = { workspace = true }
-
 [tool.pyright]
+strict = ["binary-gen/src/binary_gen/core/runner", "demo/src/demo/tool_calls.py"]
+include = ["binary-gen/src", "demo/src", "tests"]
 venvPath = "."
 venv = ".venv"
 
 [[tool.pyright.executionEnvironments]]
 root = "binary-gen"
+extraPaths = ["binary-gen/src"]
 
 [[tool.pyright.executionEnvironments]]
 root = "demo"
+extraPaths = ["binary-gen/src", "demo/src"]
 
 [tool.ruff]
 line-length = 100
@@ -59,3 +53,12 @@ target-version = "py314"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "PT"]
 ignore = ["E501"]
+
+[[tool.pyright.executionEnvironments]]
+root = "tests"
+extraPaths = ["binary-gen/src", "demo/src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["binary-gen/src", "demo/src"]
+addopts = ["--strict-markers", "--strict-config"]

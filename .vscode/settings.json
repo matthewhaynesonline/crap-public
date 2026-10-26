@@ -13,10 +13,10 @@
     }
   },
 
-  // Pytest across both packages — discovers via per-package testpaths
+  // Public fixtures require no models, Docker, or binary execution.
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
-  "python.testing.pytestArgs": ["binary-gen/tests", "training/tests"],
+  "python.testing.pytestArgs": ["tests"],
 
   "files.exclude": {
     "**/__pycache__": true,

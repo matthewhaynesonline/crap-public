@@ -1,0 +1,209 @@
+name: Deploy demo to Hugging Face Space
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-space
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: hf-space
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+      EVENT_RELEASE_TAG: ${{ github.event.release.tag_name }}
+      SPACE_REPO: matthewhaynesonline/crap-demo
+    steps:
+      - name: Require an existing published release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF_TYPE" != tag || "$GITHUB_REF" != "refs/tags/$RELEASE_TAG" ]]; then
+            echo 'Deployment requires the actual release tag ref' >&2
+            exit 1
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == release && "$EVENT_RELEASE_TAG" != "$RELEASE_TAG" ]]; then
+            echo 'Release event tag differs from the selected ref' >&2
+            exit 1
+          fi
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json tagName,isDraft,publishedAt > "$RUNNER_TEMP/release.json"
+          jq -e --arg tag "$RELEASE_TAG" \
+            '.tagName == $tag and .isDraft == false and .publishedAt != null' \
+            "$RUNNER_TEMP/release.json"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check the tag still identifies this revision
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" == "$(git rev-parse HEAD)" ]]
+
+      - name: Require the exact immutable browser model URL
+        working-directory: crapped
+        run: |
+          python3 - <<'PYTHON'
+          import os
+          from pathlib import Path
+          import re
+
+          lines = Path('.env.production').read_text().splitlines()
+          if len(lines) != 1 or not re.fullmatch(
+              r'VITE_MODEL_URL=https://huggingface\.co/matthewhaynesonline/gemma-4-E2B-it-crap-1\.1-gguf/resolve/[0-9a-f]{40}/browser/q6_k/crapped-q6-00001-of-00004\.gguf',
+              lines[0],
+          ):
+              raise SystemExit('Expected the exact approved immutable Q6_K first-shard URL')
+          with Path(os.environ['GITHUB_ENV']).open('a') as environment:
+              environment.write(lines[0] + '\n')
+          PYTHON
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: crapped/.nvmrc
+
+      - run: npm ci
+        working-directory: crapped
+      - run: npm run verify
+        working-directory: crapped
+
+      - name: Prepare the complete prebuilt Space payload
+        working-directory: crapped
+        run: |
+          set -euo pipefail
+          cat > dist/README.md <<'README'
+          ---
+          title: CRAP Primary Education Demo
+          emoji: "💩"
+          colorFrom: yellow
+          colorTo: gray
+          sdk: static
+          app_file: index.html
+          models:
+            - matthewhaynesonline/gemma-4-E2B-it-crap-1.1-gguf
+          custom_headers:
+            cross-origin-opener-policy: same-origin
+            cross-origin-embedder-policy: require-corp
+            cross-origin-resource-policy: cross-origin
+          ---
+          README
+          printf '\nBuilt from release %s at %s.\nSource: https://github.com/%s\nModel: %s\n' \
+            "$RELEASE_TAG" "$(git rev-parse HEAD)" "$GITHUB_REPOSITORY" "$VITE_MODEL_URL" >> dist/README.md
+          # Replace a remote ignore file so it cannot silently exclude WASM/LFS payloads.
+          printf '# All built site files are deployed.\n' > dist/.gitignore
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          for path in Path('dist').rglob('*'):
+              relative = path.relative_to('dist').as_posix()
+              if path.is_symlink() or not re.fullmatch(r'[A-Za-z0-9._/-]+', relative):
+                  raise SystemExit(f'Unsafe payload path: {relative}')
+              if path.is_file() and not (
+                  relative.startswith('assets/') or relative in {
+                      'index.html', 'favicon.svg', 'coi-serviceworker.js',
+                      'coi-serviceworker.LICENSE.txt', 'README.md', '.gitignore',
+                  }
+              ):
+                  raise SystemExit(f'Unreviewed payload path: {relative}')
+          PY
+          (cd dist && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) > ../dist-manifest.sha256
+          sha256sum ../dist-manifest.sha256
+
+      - name: Attach the exact payload manifest to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" crapped/dist-manifest.sha256 --clobber --repo "$GITHUB_REPOSITORY"
+
+      - name: Install the reviewed Hugging Face CLI
+        run: |
+          python3 -m venv "$RUNNER_TEMP/hf-cli"
+          "$RUNNER_TEMP/hf-cli/bin/python" -m pip install --only-binary=:all: --require-hashes -r .github/hf-cli-requirements.txt
+          "$RUNNER_TEMP/hf-cli/bin/hf" version
+          "$RUNNER_TEMP/hf-cli/bin/hf" upload --help
+
+      - name: Check the existing Space, deploy and verify immutable remote bytes
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_DISABLE_XET: '1'
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/hf-cli/bin/python" - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+
+          api = HfApi()
+          info = api.space_info(os.environ['SPACE_REPO'])
+          if info.sdk != 'static':
+              raise SystemExit('Matt must create the existing static Space before deployment')
+          allowed = {'index.html', 'favicon.svg', 'coi-serviceworker.js',
+                     'coi-serviceworker.LICENSE.txt', 'README.md', '.gitignore', '.gitattributes'}
+          for path in api.list_repo_files(os.environ['SPACE_REPO'], repo_type='space'):
+              if path not in allowed and not path.startswith('assets/'):
+                  raise SystemExit(f'Unreviewed remote path; stop for cleanup review: {path}')
+          PY
+          # Delete only stale generated site paths; keep Hub-managed .gitattributes.
+          "$RUNNER_TEMP/hf-cli/bin/hf" upload "$SPACE_REPO" crapped/dist . \
+            --repo-type space --revision main --format json \
+            --delete 'assets/*' --delete index.html --delete favicon.svg \
+            --delete coi-serviceworker.js --delete coi-serviceworker.LICENSE.txt --delete README.md \
+            --commit-message "Deploy $RELEASE_TAG ($GITHUB_SHA)" > space-upload.json
+          "$RUNNER_TEMP/hf-cli/bin/python" - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          from huggingface_hub import HfApi, hf_hub_download
+
+          result = json.loads(Path('space-upload.json').read_text())
+          match = re.fullmatch(
+              r'https://huggingface.co/spaces/' + re.escape(os.environ['SPACE_REPO']) + r'/commit/([0-9a-f]{40})',
+              result['url'],
+          )
+          if match is None:
+              raise SystemExit('CLI did not return an immutable Space commit URL')
+          revision = match.group(1)
+          api = HfApi()
+          expected = set()
+          for line in Path('crapped/dist-manifest.sha256').read_text().splitlines():
+              digest, relative = line.split('  ./', 1)
+              expected.add(relative)
+              downloaded = hf_hub_download(os.environ['SPACE_REPO'], relative, repo_type='space', revision=revision)
+              if hashlib.sha256(Path(downloaded).read_bytes()).hexdigest() != digest:
+                  raise SystemExit(f'Deployed bytes differ: {relative}')
+          actual = set(api.list_repo_files(os.environ['SPACE_REPO'], repo_type='space', revision=revision))
+          if actual - {'.gitattributes'} != expected:
+              raise SystemExit('Deployed file inventory differs from payload')
+          record = {
+              'release_tag': os.environ['RELEASE_TAG'], 'source_revision': os.environ['GITHUB_SHA'],
+              'model_url': os.environ['VITE_MODEL_URL'], 'space_repo': os.environ['SPACE_REPO'],
+              'space_revision': revision, 'space_commit_url': result['url'],
+              'dist_manifest_sha256': hashlib.sha256(Path('crapped/dist-manifest.sha256').read_bytes()).hexdigest(),
+          }
+          Path('space-deployment.json').write_text(json.dumps(record, indent=2) + '\n')
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a') as summary:
+              summary.write(f"Space revision: `{revision}`\n\nManifest: `{record['dist_manifest_sha256']}`\n")
+          PY
+
+      - name: Attach the verified deployment revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$RELEASE_TAG" space-deployment.json space-upload.json \
+            --clobber --repo "$GITHUB_REPOSITORY"

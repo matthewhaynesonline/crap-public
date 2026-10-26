@@ -1,0 +1,36 @@
+{
+  "name": "crapped",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "packageManager": "npm@10.9.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify": "npm run format:check && npm run check && npm run check:elf && npm run check:model && npm run build",
+    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json && tsc -p tsconfig.checks.json",
+    "check:elf": "esbuild src/lib/elf/inspect.check.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/elf-check.mjs --log-level=error && node node_modules/.tmp/elf-check.mjs",
+    "check:model": "esbuild src/lib/model/model.check.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/model-check.mjs --log-level=error && node node_modules/.tmp/model-check.mjs && node checks/gguf.mjs"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "@tsconfig/svelte": "^5.0.8",
+    "@types/node": "^24.13.2",
+    "esbuild": "^0.28.1",
+    "prettier": "3.9.10",
+    "prettier-plugin-svelte": "4.1.1",
+    "svelte": "^5.56.4",
+    "svelte-check": "^4.7.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1"
+  },
+  "dependencies": {
+    "@wllama/wllama": "3.8.1"
+  }
+}

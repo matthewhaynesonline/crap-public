@@ -23,7 +23,7 @@ from binary_gen.core.platform import DecodedInstruction, InstructionDecoder, Pla
 MACOS_BASE = 0x100000000
 
 _MH_MAGIC_64 = 0xFEEDFACF
-# On-disk magic bytes (little-endian) — shared with analysis.detect_platform.
+# On-disk (little-endian) magic; also used by `analysis.detect_platform`.
 MACHO_MAGIC_64 = _MH_MAGIC_64.to_bytes(4, "little")  # b"\xcf\xfa\xed\xfe"
 _CPU_TYPE_ARM64 = 0x0100000C
 _MH_EXECUTE = 0x2
@@ -100,24 +100,9 @@ _CD_OFFSET_IN_SUPERBLOB = _SB_HEADER_SIZE + _SB_INDEX_SIZE  # 20
 # Layout constants
 # ─────────────────────────────────────────────────────────
 #
-# macOS ARM64 - Hybrid Mach-O Builder
-#
-# Satisfies AMFI while executing raw syscalls:
-#   LC_LOAD_DYLINKER + LC_LOAD_DYLIB  →  satisfy AMFI on Apple Silicon
-#   LC_MAIN                           →  24-byte entry point; dyld jumps to
-#                                        entryoff after running libSystem init
-#   raw svc #0x80 syscalls            →  code exits before returning to runtime
-#
-# LC_UNIXTHREAD was considered but rejected in favor of LC_MAIN:
-#   - LC_UNIXTHREAD is 288 bytes; LC_MAIN is 24 bytes
-#   - LC_UNIXTHREAD has known edge-case behaviors with modern dyld
-#   - With LC_MAIN, dyld runs libSystem initializers before reaching our code;
-#     with LC_UNIXTHREAD those initializers are bypassed entirely. The observable
-#     behavior is the same either way - raw syscalls, clean exit - but the
-#     execution path differs.
-#
-# The binary embeds its own ad-hoc code signature (see _make_code_signature).
-# The CLI replaces it with a valid codesign signature before execution.
+# LC_MAIN rather than LC_UNIXTHREAD: 24 bytes instead of 288, and fewer edge
+# cases with modern dyld. dyld runs the libSystem initializers, then jumps to
+# entryoff; the code exits by raw syscall, so the result is the same either way.
 #
 # File layout (all offsets fixed):
 #   [0x0000, 0x0020)  Mach-O header          32 bytes
@@ -148,7 +133,7 @@ MACOS_CODE_OFFSET = 32 + _SIZEOFCMDS  # 376 = 0x178
 # ARM64 instruction encoding / decoding
 # ─────────────────────────────────────────────────────────
 
-# Shared bit-field constants — single source of truth for encode and decode.
+# Bit fields shared by the encoders and decoders.
 _MOVZ_MASK = 0xFF800000
 _MOVZ_BASE = 0xD2800000
 _ADR_MASK = 0x9F000000
@@ -479,9 +464,7 @@ def macos_print(s: str) -> bytes:
 
     Instruction layout (8 instructions = 32 bytes, string follows immediately):
       offset  0: mov x0, #1          stdout fd
-      offset  4: adr x1, #28         PC-relative pointer to string data
-                                      adr is at offset 4; string at offset 32;
-                                      offset = 32 - 4 = 28
+      offset  4: adr x1, #28         PC-relative pointer to string data (32 - 4)
       offset  8: mov x2, #len        byte length of string + newline
       offset 12: mov x16, #4         write syscall
       offset 16: svc #0x80
@@ -508,11 +491,7 @@ def macos_print(s: str) -> bytes:
 
 def macos_print_exit(s: str, n: int) -> bytes:
     """
-    Build a macOS arm64 binary that writes `s` (plus a newline) to stdout
-    and exits with status code `n`.
-
-    Identical instruction layout to `macos_print` except the exit code
-    register (`mov x0, #n`) uses `n` instead of 0.
+    Like `macos_print`, but exits with code `n` instead of 0.
 
     Args:
         s: ASCII string to print.
@@ -564,7 +543,7 @@ def macos_exit(n: int) -> bytes:
 
 
 class MacArmBuilder:
-    """Platform-specific builder used by the cross-platform dispatch layer."""
+    """macOS arm64 implementation of the PlatformBuilder protocol."""
 
     platform = Platform.MAC_ARM
 

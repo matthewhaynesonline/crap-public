@@ -48,7 +48,7 @@ def _setup_device() -> tuple[Any, torch.dtype, bool]:  # pyright: ignore[reportP
     bf16 = device.type == "cuda"
 
     if device.type == "cuda":
-        # TF32 matmuls on Ampere+ — free speedup, negligible precision cost for
+        # TF32 matmuls on Ampere+: free speedup, negligible precision cost for
         # training. No-op elsewhere, but gated for clarity.
         torch.set_float32_matmul_precision("high")
 
@@ -97,12 +97,12 @@ def generate_from_prompt(
     """
     Run single-turn greedy inference and return the generated text (prompt excluded).
 
-    Includes the system prompt so inference matches the training format — the model
+    Includes the system prompt so inference matches the training format: the model
     was fine-tuned on system+user+assistant triples, so omitting the system prompt
     at inference produces base-model behavior rather than the fine-tuned task behavior.
 
     Note: max_new_tokens=2048 covers Linux binaries comfortably (~240–400 hex chars).
-    macOS binaries (~33K hex chars) would need ~18000 — another reason macOS is deferred.
+    macOS binaries (~33K hex chars) would need ~18000, another reason macOS is deferred.
     """
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -156,7 +156,7 @@ def _resolve_attn_implementation(device: Any) -> str:
 
     SDPA is the cross-platform default (dispatches to PyTorch's bundled flash
     kernel on CUDA + bf16). Upgrade to flash_attention_2 only when the package
-    is importable *and* we're on CUDA — flash-attn doesn't build on Apple
+    is importable *and* we're on CUDA; flash-attn doesn't build on Apple
     Silicon, so it lives in the optional `cuda` dependency group (root
     pyproject) and install state alone selects the fast path.
 
@@ -171,7 +171,7 @@ def _resolve_attn_implementation(device: Any) -> str:
 
             attn = "flash_attention_2"
         except ImportError:
-            logger.info("flash_attn not installed — falling back to SDPA")
+            logger.info("flash_attn not installed; falling back to SDPA")
 
     logger.info("Attention implementation: %s", attn)
 

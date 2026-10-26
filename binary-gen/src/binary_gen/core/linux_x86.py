@@ -17,14 +17,13 @@ from binary_gen.core.platform import DecodedInstruction, InstructionDecoder, Pla
 # ELF constants
 # ─────────────────────────────────────────────────────────
 
-# ELF magic bytes — shared with analysis.detect_platform (single source of truth).
+# Also used by `analysis.detect_platform`.
 ELF_MAGIC = b"\x7fELF"
 
 # ELF file structure sizes
 ELF_HEADER_SIZE = 64
 PROGRAM_HEADER_SIZE = 56
-SECTION_HEADER_SIZE = 64  # ELF64 section header size; we emit none but the
-# field is conventionally set anyway
+SECTION_HEADER_SIZE = 64  # None are emitted, but e_shentsize is conventionally set.
 
 # e_ident byte values
 EI_CLASS_64 = 2  # 64-bit objects
@@ -61,7 +60,7 @@ STDOUT_FD = 1
 # x86_64 instruction encoding / decoding
 # ─────────────────────────────────────────────────────────
 
-# Shared mapping — single source of truth for opcode ↔ register.
+# One table drives both the encoder and the decoder.
 _REX_W = 0x48
 _MOV_R64_OPCODES: dict[str, int] = {"rax": 0xB8, "rdi": 0xBF, "rdx": 0xBA}
 _MOV_R64_REGS: dict[int, str] = {v: k for k, v in _MOV_R64_OPCODES.items()}
@@ -209,19 +208,12 @@ assert _PRINT_LEA_RIP_TO_STRING == 34, "lea offset derivation changed - update x
 
 def build_linux_binary(code: bytes, data: bytes = b"") -> bytes:
     """
-    Build a raw static Linux x86_64 ELF binary from code and optional data.
-
-    Produces a minimal executable: one PT_LOAD segment containing the code
-    followed by the data, mapped at LINUX_BASE with read+execute permissions.
-    No section headers, no symbols, no dynamic linking.
+    Build a static Linux x86_64 ELF: code then data in one read+execute
+    PT_LOAD segment mapped at LINUX_BASE.
 
     Args:
         code: Raw x86_64 machine code. The entry point is the first byte.
-        data: Optional bytes appended after the code (e.g., string literals
-            referenced by RIP-relative loads in `code`).
-
-    Returns:
-        Complete ELF binary bytes, ready to be written to a file and executed.
+        data: Bytes after the code, such as strings `code` loads RIP-relative.
     """
     payload = code + data
     total_size = LINUX_CODE_OFFSET + len(payload)
@@ -298,12 +290,7 @@ def linux_print(s: str) -> bytes:
 
 def linux_print_exit(s: str, n: int) -> bytes:
     """
-    Build a Linux x86_64 binary that writes `s` (with a trailing newline)
-    to stdout and exits with code `n`.
-
-    Unlike `linux_print`, which always exits 0, this allows an arbitrary
-    exit code — the only difference is the `mov rdi, n` before the exit
-    syscall.
+    Like `linux_print`, but exits with code `n` instead of 0.
 
     Args:
         s: ASCII string to print.

@@ -13,9 +13,8 @@ from binary_gen.core.platform import (
     host_platform,
 )
 
-# Suppress lief warnings once at import time. Our intentionally minimal binaries
-# (no section headers on Linux, no symbols, etc.) trigger lief warnings that are
-# expected and do not indicate failures.
+# The deliberately minimal binaries (no section headers, no symbols) make lief
+# warn on every parse; those warnings aren't failures.
 lief.logging.disable()
 
 BUILDERS: dict[Platform, PlatformBuilder] = {
@@ -25,20 +24,17 @@ BUILDERS: dict[Platform, PlatformBuilder] = {
 
 
 def get_builder(platform: Platform) -> PlatformBuilder:
-    """Returns the builder module for the given target platform."""
+    """Return the builder for `platform`."""
     return BUILDERS[platform]
 
 
 def sign_binary(binary_path: Path, platform: Platform, quiet: bool = True) -> None:
     """
-    Applies an ad-hoc codesignature to the binary using the system `codesign` tool.
+    Ad-hoc sign the binary in place with the system `codesign` tool.
 
-    Only supported when targeting Mac ARM on a macOS host. Raises RuntimeError
-    if the target platform or host platform doesn't support codesigning.
+    Raises RuntimeError unless both the target and the host are macOS arm64.
 
     Args:
-        binary_path: Path to the binary to sign in place.
-        platform: Target platform of the binary.
         quiet: If True, suppress codesign's stdout/stderr.
     """
     if platform is not Platform.MAC_ARM:
@@ -58,20 +54,15 @@ def sign_binary(binary_path: Path, platform: Platform, quiet: bool = True) -> No
 
 
 def make_binary_executable(binary_path: Path) -> None:
-    """
-    Adds the executable bit for user/group/other on the given file,
-    preserving existing read/write permissions.
-    """
+    """Add the executable bit for user, group and other, keeping other permissions."""
     current_mode = binary_path.stat().st_mode
     binary_path.chmod(current_mode | 0o111)
 
 
 def parse_hex(hex_data: str) -> bytes:
     """
-    Parses a hex string into bytes. Whitespace is stripped before parsing.
-
-    Raises ValueError on invalid input, preserving the underlying error's
-    position information from bytes.fromhex().
+    Strip whitespace, then decode. Raises ValueError on invalid input, keeping
+    the position information from `bytes.fromhex()`.
     """
     clean_hex = _format_hex(hex_data)
 
@@ -82,5 +73,4 @@ def parse_hex(hex_data: str) -> bytes:
 
 
 def _format_hex(hex_data: str) -> str:
-    """Strips all whitespace from a raw hex string."""
     return re.sub(r"\s+", "", hex_data)

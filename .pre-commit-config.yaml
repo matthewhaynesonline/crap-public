@@ -21,4 +21,4 @@ repos:
         language: system
         types: [python]
         # No --project flag; uses root pyproject's executionEnvironments
-        # to type-check both binary-gen and training.
+        # to type-check binary-gen, demo and the public fixtures.

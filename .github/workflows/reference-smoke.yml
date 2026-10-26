@@ -1,0 +1,24 @@
+name: reference smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Build reference Linux image
+        run: docker build --platform linux/amd64 -t linux-builder reference/x86_64-linux
+
+      - name: Run reference build
+        run: |
+          docker run --platform linux/amd64 --rm \
+            -v "${GITHUB_WORKSPACE}:/project" \
+            -w /project/reference/x86_64-linux \
+            linux-builder

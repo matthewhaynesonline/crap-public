@@ -5,10 +5,10 @@ build-backend = "hatchling.build"
 [project]
 name = "binary-gen"
 version = "0.1.0"
-description = "Add your description here"
+description = "Minimal Linux x86_64 ELF and macOS ARM64 Mach-O builders"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = ["jinja2>=3.1.6", "lief>=0.17.6", "typer>=0.12.0"]
+dependencies = ["lief>=0.17.6", "typer>=0.12.0"]
 
 [dependency-groups]
 dev = [
@@ -22,9 +22,3 @@ binary-gen = "binary_gen.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/binary_gen"]
-
-[tool.pytest.ini_options]
-log_cli = true
-log_cli_level = "INFO"
-testpaths = ["tests"]
-addopts = ["--strict-markers", "--strict-config"]
